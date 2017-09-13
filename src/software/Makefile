@@ -5,9 +5,9 @@ CFLAGS = -DCONFIG_LOGLEVEL=4 -std=gnu99 -g -Wall -Werror $(INCLUDES)
 
 LDLIBS = -lfpga_mgmt -lrt -lpthread
 
-SRC = test_dram_dma.c
+SRC = main.c
 OBJ = $(SRC:.c=.o)
-BIN = test_dram_dma
+BIN = main
 
 all: check_env $(BIN)
 
