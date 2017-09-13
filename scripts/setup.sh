@@ -20,6 +20,12 @@ echo "HDK setup complete"
 source ./sdk_setup.sh
 echo "SDK setup success."
 
+# Setup EDMA
+echo "Installing AWS Linux EDMA kernel..."
+cd $AWS_FPGA_REPO_DIR/sdk/linux_kernel_drivers/edma
+make
+echo "EDMA installation success!"
+
 # Install Xtst libs for Vivado GUI X11 forwarding
 echo "Installing dependencies for Vivado GUI X11 forwarding...
 sudo yum install -y libXtst-devel libXtst"
@@ -75,8 +81,10 @@ source pyrilog/bin/activate
 # Install dependencies in virtualenv
 cd /home/centos/pyrilog
 pip install -r requirements.txt
-
+deactivate # Leave the Python environment
 
 # Finish!
 cd $DIR
 echo Success! Log out and log in again for X11 support.
+
+set +e
