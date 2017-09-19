@@ -7,23 +7,42 @@
 #include <fpga_mgmt.h>
 #include <utils/lcd.h>
 
-#define IN_BUF_SIZE 16
+#define IN_BUF_SIZE 8
 #define OUT_BUF_SIZE 32
 
+// TODO: This should be defined in a separate .h file
 // Memory address offsets
-#define INPUT_1_OFFSET UINT64_C(0x00010000)
-#define INPUT_2_OFFSET UINT64_C(0x00001000)
-#define OUTPUT_OFFSET UINT64_C(0x00002000)
+#define INPUT_A0_OFFSET UINT64_C(0x0040000000)
+#define INPUT_A1_OFFSET UINT64_C(0x0040010000)
+#define INPUT_A2_OFFSET UINT64_C(0x0040020000)
+#define INPUT_A3_OFFSET UINT64_C(0x0040030000)
+#define INPUT_A4_OFFSET UINT64_C(0x0040040000)
+#define INPUT_A5_OFFSET UINT64_C(0x0040050000)
+#define INPUT_A6_OFFSET UINT64_C(0x0040060000)
+#define INPUT_A7_OFFSET UINT64_C(0x0040070000)
+
+#define INPUT_B0_OFFSET UINT64_C(0x0040080000)
+#define INPUT_B1_OFFSET UINT64_C(0x0040090000)
+#define INPUT_B2_OFFSET UINT64_C(0x00400A0000)
+#define INPUT_B3_OFFSET UINT64_C(0x00400B0000)
+#define INPUT_B4_OFFSET UINT64_C(0x00400C0000)
+#define INPUT_B5_OFFSET UINT64_C(0x00400D0000)
+#define INPUT_B6_OFFSET UINT64_C(0x00400E0000)
+#define INPUT_B7_OFFSET UINT64_C(0x00400F0000)
+
+#define OUTPUT_OFFSET UINT64_C(0x0040100000)
 
 static uint16_t pci_vendor_id = 0x1D0F; /* Amazon PCI Vendor ID */
 static uint16_t pci_device_id = 0xF000; /* PCI Device ID preassigned by Amazon for F1 applications */
 
 int check_afi_ready(int slot_id);
-int multiply(int a, int b, uint32_t *result);
+pci_bar_handle_t attach_fpga();
+int fma_8(int a[8], int b[8], uint32_t *result, pci_bar_handle_t pci_bar_handle);
 
 int main(int argc, char *argv[])
 {
     int rc;
+    pci_bar_handle_t pci_bar_handle;
 
     rc = fpga_pci_init();
     fail_on(rc, out, "Unable to initialize the fpga_pci library");
@@ -31,13 +50,46 @@ int main(int argc, char *argv[])
     rc = check_afi_ready(0);
     fail_on(rc, out, "AFI not ready");
 
-    int a = atoi(argv[1]);
-    int b = atoi(argv[2]);
+    // Attach FPGA
+    pci_bar_handle = attach_fpga();
+
+    if (pci_bar_handle < 0) {
+        return 1;
+    }
+
     uint32_t result;
 
-    printf("Expecting: %d * %d = %d\n", a, b, a*b);
-    rc = multiply(a, b, &result);
-    fail_on(rc, out, "Multiplication failed");
+    int a[8],b[8];
+    int value;
+
+    // Read inputs for A
+    for (int i = 0; i < 8; i++) {
+        printf("%2d> ", i+1);
+        scanf("%d", &value);
+        a[i] = value;
+    }
+
+    // Read inputs for B
+    for (int i = 0; i < 8; i++) {
+        printf("%2d> ", i+1);
+        scanf("%d", &value);
+        b[i] = value;
+    }
+
+    printf("Expected result for: ");
+    int expected = 0;
+    for (int i = 0; i < 8; i++) {
+        printf("%d * %d", a[i], b[i]);
+        if (i < 8) {
+            printf(" + ");
+        }
+
+        expected += a[i] * b[i];
+    }
+    printf(" = %d", expected);
+
+    rc = fma_8(a, b, &result, pci_bar_handle);
+    fail_on(rc, out, "Fused multiply add failed");
     printf("Actual: %d\n", result);
 
     return rc;
@@ -46,21 +98,51 @@ out:
     return 1;
 }
 
-int multiply(int a, int b, uint32_t *result)
+int fma_8(
+    int a[8],
+    int b[8],
+    uint32_t *result,
+    pci_bar_handle_t pci_bar_handle
+)
 {
     int rc;
-    pci_bar_handle_t pci_bar_handle = PCI_BAR_HANDLE_INIT;
 
-    rc = fpga_pci_attach(0, FPGA_APP_PF, APP_PF_BAR4, 0, &pci_bar_handle);
-    fail_on(rc, out, "Unable to attach to the AFI on slot id %d", 0);
+    // Setup addresses
+    uint64_t input_a_addr[8] = {
+        INPUT_A0_OFFSET,
+        INPUT_A1_OFFSET,
+        INPUT_A2_OFFSET,
+        INPUT_A3_OFFSET,
+        INPUT_A4_OFFSET,
+        INPUT_A5_OFFSET,
+        INPUT_A6_OFFSET,
+        INPUT_A7_OFFSET
+    };
 
-    rc = fpga_pci_poke(pci_bar_handle, INPUT_1_OFFSET, a);
-    fail_on(rc, out, "Unable to write to FPGA");
-    rc = fpga_pci_poke(pci_bar_handle, INPUT_2_OFFSET, b);
-    fail_on(rc, out, "Unable to write to FPGA");
+    uint64_t input_b_addr[8] = {
+        INPUT_B0_OFFSET,
+        INPUT_B1_OFFSET,
+        INPUT_B2_OFFSET,
+        INPUT_B3_OFFSET,
+        INPUT_B4_OFFSET,
+        INPUT_B5_OFFSET,
+        INPUT_B6_OFFSET,
+        INPUT_B7_OFFSET
+    };
 
+    for (int i = 0; i < 8; i++) {
+        // Write vector A inputs
+        rc = fpga_pci_poke(pci_bar_handle, input_a_addr[i], a[i]);
+        fail_on(rc, out, "Unable to write to FPGA");
+
+        // Write vector B inputs
+        rc = fpga_pci_poke(pci_bar_handle, input_b_addr[i], b[i]);
+        fail_on(rc, out, "Unable to write to FPGA");
+    }
+
+    // Read result
     rc = fpga_pci_peek(pci_bar_handle, OUTPUT_OFFSET, result);
-    fail_on(rc, out, "Unalbe to read from the FPGA");
+    fail_on(rc, out, "Unable to read from FPGA");
 
     return rc;
 
@@ -68,7 +150,7 @@ out:
     if (pci_bar_handle >= 0) {
         rc = fpga_pci_detach(pci_bar_handle);
         if (rc) {
-            printf("Failure while detaching from the FPGA.\n");
+            printf("Failure while detaching from FPGA.\n");
         }
     }
 
@@ -124,3 +206,16 @@ int check_afi_ready(int slot_id) {
 out:
     return 1;
 }
+
+pci_bar_handle_t attach_fpga() {
+    int rc;
+    pci_bar_handle_t pci_bar_handle = PCI_BAR_HANDLE_INIT;
+
+    rc = fpga_pci_attach(0, FPGA_APP_PF, APP_PF_BAR4, 0, &pci_bar_handle);
+    fail_on(rc, out, "Unable to attach to the AFI on slot id %d", 0);
+
+    return pci_bar_handle;
+out:
+    return 1;
+}
+
