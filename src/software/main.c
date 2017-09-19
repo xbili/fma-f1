@@ -37,7 +37,7 @@ static uint16_t pci_device_id = 0xF000; /* PCI Device ID preassigned by Amazon f
 
 int check_afi_ready(int slot_id);
 pci_bar_handle_t attach_fpga();
-int fma_8(int a[8], int b[8], uint32_t *result, pci_bar_handle_t pci_bar_handle);
+int fma_8(int8_t a[8], int8_t b[8], uint32_t *result, pci_bar_handle_t pci_bar_handle);
 
 int main(int argc, char *argv[])
 {
@@ -59,7 +59,7 @@ int main(int argc, char *argv[])
 
     uint32_t result;
 
-    int a[8],b[8];
+    int8_t a[8],b[8];
     int value;
 
     // Read inputs for A
@@ -79,18 +79,18 @@ int main(int argc, char *argv[])
     printf("Expected result for: ");
     int expected = 0;
     for (int i = 0; i < 8; i++) {
-        printf("%d * %d", a[i], b[i]);
-        if (i < 8) {
+        printf("%d * %d", (int) a[i], (int) b[i]);
+        if (i < 7) {
             printf(" + ");
         }
 
-        expected += a[i] * b[i];
+        expected += (int) a[i] * (int) b[i];
     }
-    printf(" = %d", expected);
+    printf(" = %d\n", expected);
 
     rc = fma_8(a, b, &result, pci_bar_handle);
     fail_on(rc, out, "Fused multiply add failed");
-    printf("Actual: %d\n", result);
+    printf("Actual: %d\n", (int) result);
 
     return rc;
 
@@ -99,8 +99,8 @@ out:
 }
 
 int fma_8(
-    int a[8],
-    int b[8],
+    int8_t a[8],
+    int8_t b[8],
     uint32_t *result,
     pci_bar_handle_t pci_bar_handle
 )
@@ -143,8 +143,6 @@ int fma_8(
     // Read result
     rc = fpga_pci_peek(pci_bar_handle, OUTPUT_OFFSET, result);
     fail_on(rc, out, "Unable to read from FPGA");
-
-    return rc;
 
 out:
     if (pci_bar_handle >= 0) {
