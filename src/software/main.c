@@ -14,23 +14,23 @@
 // Memory address offsets
 #define INPUT_A0_OFFSET UINT64_C(0x0040000000)
 #define INPUT_A1_OFFSET UINT64_C(0x0040010000)
-#define INPUT_A2_OFFSET UINT64_C(0x0040090000)
-#define INPUT_A3_OFFSET UINT64_C(0x00400A0000)
-#define INPUT_A4_OFFSET UINT64_C(0x00400B0000)
-#define INPUT_A5_OFFSET UINT64_C(0x00400C0000)
-#define INPUT_A6_OFFSET UINT64_C(0x00400D0000)
-#define INPUT_A7_OFFSET UINT64_C(0x00400E0000)
+#define INPUT_A2_OFFSET UINT64_C(0x0040020000)
+#define INPUT_A3_OFFSET UINT64_C(0x0040030000)
+#define INPUT_A4_OFFSET UINT64_C(0x0040040000)
+#define INPUT_A5_OFFSET UINT64_C(0x0040050000)
+#define INPUT_A6_OFFSET UINT64_C(0x0040060000)
+#define INPUT_A7_OFFSET UINT64_C(0x0040070000)
 
-#define INPUT_B0_OFFSET UINT64_C(0x00400F0000)
-#define INPUT_B1_OFFSET UINT64_C(0x0040100000)
-#define INPUT_B2_OFFSET UINT64_C(0x0040020000)
-#define INPUT_B3_OFFSET UINT64_C(0x0040030000)
-#define INPUT_B4_OFFSET UINT64_C(0x0040040000)
-#define INPUT_B5_OFFSET UINT64_C(0x0040050000)
-#define INPUT_B6_OFFSET UINT64_C(0x0040060000)
-#define INPUT_B7_OFFSET UINT64_C(0x0040070000)
+#define INPUT_B0_OFFSET UINT64_C(0x0040080000)
+#define INPUT_B1_OFFSET UINT64_C(0x0040090000)
+#define INPUT_B2_OFFSET UINT64_C(0x00400A0000)
+#define INPUT_B3_OFFSET UINT64_C(0x00400B0000)
+#define INPUT_B4_OFFSET UINT64_C(0x00400C0000)
+#define INPUT_B5_OFFSET UINT64_C(0x00400D0000)
+#define INPUT_B6_OFFSET UINT64_C(0x00400E0000)
+#define INPUT_B7_OFFSET UINT64_C(0x00400F0000)
 
-#define OUTPUT_OFFSET UINT64_C(0x0040080000)
+#define OUTPUT_OFFSET UINT64_C(0x0040100000)
 
 static uint16_t pci_vendor_id = 0x1D0F; /* Amazon PCI Vendor ID */
 static uint16_t pci_device_id = 0xF000; /* PCI Device ID preassigned by Amazon for F1 applications */
@@ -130,15 +130,9 @@ int fma_8(
         INPUT_B7_OFFSET
     };
 
-    for (int i = 0; i < 8; i++) {
-        // Write vector A inputs
-        rc = fpga_pci_poke(pci_bar_handle, input_a_addr[i], a[i]);
-        fail_on(rc, out, "Unable to write to FPGA");
-
-        // Write vector B inputs
-        rc = fpga_pci_poke(pci_bar_handle, input_b_addr[i], b[i]);
-        fail_on(rc, out, "Unable to write to FPGA");
-    }
+    // Write vector A inputs
+    fpga_pci_write_burst(pci_bar_handle, INPUT_A0_OFFSET, a, 2);
+    fpga_pci_write_burst(pci_bar_handle, INPUT_B0_OFFSET, b, 2);
 
     // Read result
     rc = fpga_pci_peek(pci_bar_handle, OUTPUT_OFFSET, result);
