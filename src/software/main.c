@@ -107,9 +107,46 @@ int fma_8(
 {
     int rc;
 
+    // Setup addresses
+    uint64_t input_a_addr[8] = {
+        INPUT_A0_OFFSET,
+        INPUT_A1_OFFSET,
+        INPUT_A2_OFFSET,
+        INPUT_A3_OFFSET,
+        INPUT_A4_OFFSET,
+        INPUT_A5_OFFSET,
+        INPUT_A6_OFFSET,
+        INPUT_A7_OFFSET
+    };
+
+    uint64_t input_b_addr[8] = {
+        INPUT_B0_OFFSET,
+        INPUT_B1_OFFSET,
+        INPUT_B2_OFFSET,
+        INPUT_B3_OFFSET,
+        INPUT_B4_OFFSET,
+        INPUT_B5_OFFSET,
+        INPUT_B6_OFFSET,
+        INPUT_B7_OFFSET
+    };
+
     // Write vector A inputs
     rc = fpga_pci_write_burst(pci_bar_handle, INPUT_A0_OFFSET, (uint32_t *) a, 2);
     rc = fpga_pci_write_burst(pci_bar_handle, INPUT_B0_OFFSET, (uint32_t *) b, 2);
+
+    // Read the written inputs
+    printf("Inputs written into FPGA:\n");
+    uint32_t *intermediateA = malloc(sizeof(uint32_t));
+    uint32_t *intermediateB = malloc(sizeof(uint32_t));
+    for (int i = 0; i < 8; i++) {
+        rc = fpga_pci_peek(pci_bar_handle, input_a_addr[i], intermediateA);
+        rc = fpga_pci_peek(pci_bar_handle, input_b_addr[i], intermediateB);
+        fail_on(rc, out, "Unable to read from FPGA");
+
+        printf("A: %d, B: %d\n", (int) *intermediateA, (int) *intermediateB);
+    }
+    free(intermediateA);
+    free(intermediateB);
 
     // Read result
     rc = fpga_pci_peek(pci_bar_handle, OUTPUT_OFFSET, result);
