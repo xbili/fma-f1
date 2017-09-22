@@ -36,8 +36,7 @@ static uint16_t pci_vendor_id = 0x1D0F; /* Amazon PCI Vendor ID */
 static uint16_t pci_device_id = 0xF000; /* PCI Device ID preassigned by Amazon for F1 applications */
 
 int check_afi_ready(int slot_id);
-void attach_fpga(pci_bar_handle_t pci_bar_handle);
-int fma_8(int8_t a[8], int8_t b[8], uint32_t *result, pci_bar_handle_t pci_bar_handle);
+int fma_8(int8_t a[8], int8_t b[8], uint32_t *result);
 
 int main(int argc, char *argv[])
 {
@@ -49,16 +48,10 @@ int main(int argc, char *argv[])
     rc = check_afi_ready(0);
     fail_on(rc, out, "AFI not ready");
 
-    pci_bar_handle_t pci_bar_handle = PCI_BAR_HANDLE_INIT;
-
-    // Attach FPGA
-    attach_fpga(pci_bar_handle);
-
     uint32_t result;
-
     int8_t a[8],b[8];
-    int value;
 
+    int value;
     // Read inputs for A
     for (int i = 0; i < 8; i++) {
         printf("%2d> ", i+1);
@@ -85,7 +78,7 @@ int main(int argc, char *argv[])
     }
     printf(" = %d\n", expected);
 
-    rc = fma_8(a, b, &result, pci_bar_handle);
+    rc = fma_8(a, b, &result);
     fail_on(rc, out, "Fused multiply add failed");
     printf("Actual: %d\n", (int) result);
 
@@ -95,14 +88,14 @@ out:
     return 1;
 }
 
-int fma_8(
-    int8_t a[8],
-    int8_t b[8],
-    uint32_t *result,
-    pci_bar_handle_t pci_bar_handle
-)
+int fma_8(int8_t a[8], int8_t b[8], uint32_t *result)
 {
     int rc;
+
+    pci_bar_handle_t pci_bar_handle = PCI_BAR_HANDLE_INIT;
+
+    rc = fpga_pci_attach(0, FPGA_APP_PF, APP_PF_BAR4, 0, &pci_bar_handle);
+    fail_on(rc, out, "Unable to attach to the AFI on slot id %d", 0);
 
     // Setup addresses
     uint64_t input_a_addr[8] = {
@@ -156,7 +149,8 @@ out:
 }
 
 
-int check_afi_ready(int slot_id) {
+int check_afi_ready(int slot_id)
+{
     struct fpga_mgmt_image_info info = {0};
     int rc;
 
@@ -204,12 +198,3 @@ int check_afi_ready(int slot_id) {
 out:
     return 1;
 }
-
-void attach_fpga(pci_bar_handle_t pci_bar_handle) {
-    int rc;
-    rc = fpga_pci_attach(0, FPGA_APP_PF, APP_PF_BAR4, 0, &pci_bar_handle);
-    fail_on(rc, out, "Unable to attach to the AFI on slot id %d", 0);
-out:
-    return;
-}
-
