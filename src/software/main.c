@@ -37,7 +37,7 @@ static uint16_t pci_vendor_id = 0x1D0F; /* Amazon PCI Vendor ID */
 static uint16_t pci_device_id = 0xF000; /* PCI Device ID preassigned by Amazon for F1 applications */
 
 int check_afi_ready(int slot_id);
-int fma_8(int8_t a[8], int8_t b[8], uint32_t *result);
+int fma_8(int a[8], int b[8], uint32_t *result);
 
 int main(int argc, char *argv[])
 {
@@ -50,21 +50,18 @@ int main(int argc, char *argv[])
     fail_on(rc, out, "AFI not ready");
 
     uint32_t result;
-    int8_t a[8],b[8];
+    int a[8],b[8];
 
-    int value;
     // Read inputs for A
     for (int i = 0; i < 8; i++) {
         printf("%2d> ", i+1);
-        scanf("%d", &value);
-        a[i] = value;
+        scanf("%d", &a[i]);
     }
 
     // Read inputs for B
     for (int i = 0; i < 8; i++) {
         printf("%2d> ", i+1);
-        scanf("%d", &value);
-        b[i] = value;
+        scanf("%d", &b[i]);
     }
 
     printf("Expected result for: ");
@@ -89,7 +86,7 @@ out:
     return 1;
 }
 
-int fma_8(int8_t a[8], int8_t b[8], uint32_t *result)
+int fma_8(int a[8], int b[8], uint32_t *result)
 {
     int rc;
 
@@ -124,12 +121,12 @@ int fma_8(int8_t a[8], int8_t b[8], uint32_t *result)
     // Write vector inputs
     for (int i = 0; i < 8; i++) {
         // A
-        printf("Writing %d to A input address.\n", (int) a[i]);
+        printf("Writing %d to A input address.\n", a[i]);
         rc = fpga_pci_poke(pci_bar_handle, input_a_addr[i], a[i]);
         fail_on(rc, out, "Unable to write to FPGA");
 
         // B
-        printf("Writing %d to B input address.\n", (int) b[i]);
+        printf("Writing %d to B input address.\n", b[i]);
         rc = fpga_pci_poke(pci_bar_handle, input_b_addr[i], b[i]);
         fail_on(rc, out, "Unable to write to FPGA");
     }
