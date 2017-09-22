@@ -36,13 +36,12 @@ static uint16_t pci_vendor_id = 0x1D0F; /* Amazon PCI Vendor ID */
 static uint16_t pci_device_id = 0xF000; /* PCI Device ID preassigned by Amazon for F1 applications */
 
 int check_afi_ready(int slot_id);
-pci_bar_handle_t attach_fpga();
+void attach_fpga(pci_bar_handle_t pci_bar_handle);
 int fma_8(int8_t a[8], int8_t b[8], uint32_t *result, pci_bar_handle_t pci_bar_handle);
 
 int main(int argc, char *argv[])
 {
     int rc;
-    pci_bar_handle_t pci_bar_handle;
 
     rc = fpga_pci_init();
     fail_on(rc, out, "Unable to initialize the fpga_pci library");
@@ -50,12 +49,10 @@ int main(int argc, char *argv[])
     rc = check_afi_ready(0);
     fail_on(rc, out, "AFI not ready");
 
-    // Attach FPGA
-    pci_bar_handle = attach_fpga();
+    pci_bar_handle_t pci_bar_handle = PCI_BAR_HANDLE_INIT;
 
-    if (pci_bar_handle < 0) {
-        return 1;
-    }
+    // Attach FPGA
+    attach_fpga(pci_bar_handle);
 
     uint32_t result;
 
@@ -208,15 +205,11 @@ out:
     return 1;
 }
 
-pci_bar_handle_t attach_fpga() {
+void attach_fpga(pci_bar_handle_t pci_bar_handle) {
     int rc;
-    pci_bar_handle_t pci_bar_handle = PCI_BAR_HANDLE_INIT;
-
     rc = fpga_pci_attach(0, FPGA_APP_PF, APP_PF_BAR4, 0, &pci_bar_handle);
     fail_on(rc, out, "Unable to attach to the AFI on slot id %d", 0);
-
-    return pci_bar_handle;
 out:
-    return 1;
+    return;
 }
 
