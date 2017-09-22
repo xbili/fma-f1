@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <unistd.h>
 
 #include <fpga_pci.h>
 #include <fpga_mgmt.h>
@@ -132,6 +133,8 @@ int fma_8(int8_t a[8], int8_t b[8], uint32_t *result)
         rc = fpga_pci_poke(pci_bar_handle, input_b_addr[i], b[i]);
         fail_on(rc, out, "Unable to write to FPGA");
     }
+
+    sleep(10);
 
     // Read result
     rc = fpga_pci_peek(pci_bar_handle, OUTPUT_OFFSET, result);
