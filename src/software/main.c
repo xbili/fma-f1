@@ -131,14 +131,15 @@ int fma_8(
     };
 
     // Write vector inputs
-    //
     for (int i = 0; i < 8; i++) {
         // A
-        rc = fpga_pci_poke(pci_bar_handle, input_a_addr[i], (uint32_t) a[i]);
+        printf("Writing %d to A input address.\n", (int) a[i]);
+        rc = fpga_pci_poke(pci_bar_handle, input_a_addr[i], a[i]);
         fail_on(rc, out, "Unable to write to FPGA");
 
         // B
-        rc = fpga_pci_poke(pci_bar_handle, input_b_addr[i], (uint32_t) b[i]);
+        printf("Writing %d to B input address.\n", (int) b[i]);
+        rc = fpga_pci_poke(pci_bar_handle, input_b_addr[i], b[i]);
         fail_on(rc, out, "Unable to write to FPGA");
     }
 
