@@ -82,8 +82,8 @@ int main(int argc, char *argv[])
     uint32_t *readA = malloc(sizeof(uint32_t));
     uint32_t *readB = malloc(sizeof(uint32_t));
     for (int i = 0; i < 8; i++) {
-        rc = fpga_pci_peek(pci_bar_handle, DDR_A_BASE, readA);
-        rc = fpga_pci_peek(pci_bar_handle, DDR_A_BASE, readB);
+        rc = fpga_pci_peek(pci_bar_handle, DDR_A_BASE + i * 4, readA);
+        rc = fpga_pci_peek(pci_bar_handle, DDR_A_BASE + 256 + i * 4, readB);
 
         printf("A%d: %d\n", i, (int) *readA);
         printf("B%d: %d\n", i, (int) *readB);
