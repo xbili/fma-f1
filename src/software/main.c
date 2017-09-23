@@ -15,6 +15,10 @@
 #define DDR_B_BASE UINT64_C(0x0080000000)
 #define DDR_D_BASE UINT64_C(0x0100000000)
 
+#define INPUT_A_BASE UINT64_C(0x0180000000)
+#define INPUT_B_BASE UINT64_C(0x0180010000)
+#define OUTPUT_BASE UINT64_C(0x0180020000)
+
 
 static uint16_t pci_vendor_id = 0x1D0F; /* Amazon PCI Vendor ID */
 static uint16_t pci_device_id = 0xF000; /* PCI Device ID preassigned by Amazon for F1 applications */
@@ -31,13 +35,19 @@ int main(int argc, char *argv[])
     rc = check_afi_ready(0);
     fail_on(rc, out, "AFI not ready");
 
-    uint32_t a[8] = { 1, 2, 3, 4, 5, 6, 7, 8 };
-    uint32_t b[8] = { 9, 10, 11, 12, 13, 14, 15, 16 };
+    // Attach PCIe
+    pci_bar_handle_t pci_bar_handle = PCI_BAR_HANDLE_INIT;
+    rc = fpga_pci_attach(0, FPGA_APP_PF, APP_PF_BAR4, BURST_CAPABLE, &pci_bar_handle);
+    fail_on(rc, out, "Unable to attach to the AFI on slot id %d", 0);
 
-    /*
-    int value;
+
+    // DDR TEST
+
+    uint32_t a[8];
+    uint32_t b[8];
 
     // Read inputs for A
+    int value;
     for (int i = 0; i < 8; i++) {
         printf("%2d> ", i+1);
         scanf("%d", &value);
@@ -50,7 +60,6 @@ int main(int argc, char *argv[])
         scanf("%d", &value);
         b[i] = (uint32_t) value;
     }
-    */
 
     printf("Expected result for: ");
     int expected = 0;
@@ -63,12 +72,6 @@ int main(int argc, char *argv[])
         expected += (int) a[i] * (int) b[i];
     }
     printf(" = %d\n", expected);
-
-
-    // Attach PCIe
-    pci_bar_handle_t pci_bar_handle = PCI_BAR_HANDLE_INIT;
-    rc = fpga_pci_attach(0, FPGA_APP_PF, APP_PF_BAR4, BURST_CAPABLE, &pci_bar_handle);
-    fail_on(rc, out, "Unable to attach to the AFI on slot id %d", 0);
 
     // Write in burst mode A and B into DDR_A, DDR_B and DDR_D
 
@@ -92,6 +95,23 @@ int main(int argc, char *argv[])
     free(readB);
     readA = NULL;
     readB = NULL;
+
+    // MULTIPLIER TEST
+
+    // Test multiplier
+    int multiplierA, multiplierB;
+    uint32_t *multiplierResult = malloc(sizeof(uint32_t));
+
+    // Write in to multiplier registers
+    printf("Input A:\n");
+    scanf("%d", &multiplierA);
+    rc = fpga_pci_poke(pci_bar_handle, INPUT_A_BASE, );
+
+    printf("Input B:\n");
+    scanf("%d", &multiplierB);
+
+    printf("Expected: %d\n", multiplierA * multiplierB);
+    printf("Result: %d\n", (int) *multiplierResult);
 
 out:
     if (pci_bar_handle >= 0) {
