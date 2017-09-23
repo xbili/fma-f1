@@ -67,31 +67,20 @@ int main(int argc, char *argv[])
 
     // DDR_A
     rc = fpga_pci_write_burst(pci_bar_handle, DDR_A_BASE, (uint32_t*) a, 2);
-    rc = fpga_pci_write_burst(pci_bar_handle, DDR_A_BASE + 64, (uint32_t*) b, 2);
-
-    // DDR_B
-    rc = fpga_pci_write_burst(pci_bar_handle, DDR_B_BASE, (uint32_t*) a, 2);
-    rc = fpga_pci_write_burst(pci_bar_handle, DDR_B_BASE + 64, (uint32_t*) b, 2);
-
-    // DDR_D
-    rc = fpga_pci_write_burst(pci_bar_handle, DDR_D_BASE, (uint32_t*) a, 2);
-    rc = fpga_pci_write_burst(pci_bar_handle, DDR_D_BASE + 64, (uint32_t*) b, 2);
+    rc = fpga_pci_write_burst(pci_bar_handle, DDR_A_BASE + 256, (uint32_t*) b, 2);
 
     fail_on(rc, out, "Write failed!");
 
     // Read from each DDR
     uint32_t valueA;
     uint32_t valueB;
-    uint32_t valueD;
     for (int i = 0; i < 8; i++) {
-        rc = fpga_pci_peek(pci_bar_handle, DDR_A_BASE + i * 8, &valueA);
-        rc = fpga_pci_peek(pci_bar_handle, DDR_B_BASE + i * 8, &valueB);
-        rc = fpga_pci_peek(pci_bar_handle, DDR_D_BASE + i * 8, &valueD);
+        rc = fpga_pci_peek(pci_bar_handle, DDR_A_BASE + i * 32, &valueA);
+        rc = fpga_pci_peek(pci_bar_handle, DDR_A_BASE + 256 + i * 32, &valueA);
         fail_on(rc, out, "Read failed!");
 
-        printf("Value #%d in DDR A: %d", i, (int) valueA);
-        printf("Value #%d in DDR B: %d", i, (int) valueB);
-        printf("Value #%d in DDR D: %d", i, (int) valueD);
+        printf("A Value #%d in DDR A: %d\n", i, (int) valueA);
+        printf("B Value #%d in DDR A: %d\n", i, (int) valueB);
     }
 
 out:
