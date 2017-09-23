@@ -69,8 +69,8 @@ int main(int argc, char *argv[])
     // Write in burst mode A and B into DDR_A, DDR_B and DDR_D
 
     // DDR_A
-    rc = fpga_pci_write_burst(pci_bar_handle, DDR_A_BASE, a, 2);
-    rc = fpga_pci_write_burst(pci_bar_handle, DDR_A_BASE + 256, b, 2);
+    rc = fpga_pci_write_burst(pci_bar_handle, DDR_A_BASE, a, 8);
+    rc = fpga_pci_write_burst(pci_bar_handle, DDR_A_BASE + 256, b, 8);
 
     fail_on(rc, out, "Write failed!");
 
