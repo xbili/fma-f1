@@ -31,22 +31,26 @@ int main(int argc, char *argv[])
     rc = check_afi_ready(0);
     fail_on(rc, out, "AFI not ready");
 
-    uint32_t a[8],b[8];
+    uint32_t a[8] = { 1, 2, 3, 4, 5, 6, 7, 8 };
+    uint32_t b[8] = { 9, 10, 11, 12, 13, 14, 15, 16 };
 
+    /*
     int value;
+
     // Read inputs for A
     for (int i = 0; i < 8; i++) {
         printf("%2d> ", i+1);
         scanf("%d", &value);
-        a[i] = value;
+        a[i] = (uint32_t) value;
     }
 
     // Read inputs for B
     for (int i = 0; i < 8; i++) {
         printf("%2d> ", i+1);
         scanf("%d", &value);
-        b[i] = value;
+        b[i] = (uint32_t) value;
     }
+    */
 
     printf("Expected result for: ");
     int expected = 0;
@@ -75,16 +79,19 @@ int main(int argc, char *argv[])
     fail_on(rc, out, "Write failed!");
 
     // Read from each DDR
-    uint32_t valueA;
-    uint32_t valueB;
+    uint32_t *readA = malloc(sizeof(uint32_t));
+    uint32_t *readB = malloc(sizeof(uint32_t));
     for (int i = 0; i < 8; i++) {
-        rc = fpga_pci_peek(pci_bar_handle, DDR_A_BASE + i * 32, &valueA);
-        rc = fpga_pci_peek(pci_bar_handle, DDR_A_BASE + 256 + i * 32, &valueB);
-        fail_on(rc, out, "Read failed!");
+        rc = fpga_pci_peek(pci_bar_handle, DDR_A_BASE, readA);
+        rc = fpga_pci_peek(pci_bar_handle, DDR_A_BASE, readB);
 
-        printf("A Value #%d in DDR A: %d\n", i, (int) valueA);
-        printf("B Value #%d in DDR A: %d\n", i, (int) valueB);
+        printf("A%d: %d\n", i, (int) *readA);
+        printf("B%d: %d\n", i, (int) *readB);
     }
+    free(readA);
+    free(readB);
+    readA = NULL;
+    readB = NULL;
 
 out:
     if (pci_bar_handle >= 0) {
