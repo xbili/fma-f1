@@ -31,18 +31,21 @@ int main(int argc, char *argv[])
     rc = check_afi_ready(0);
     fail_on(rc, out, "AFI not ready");
 
-    int a[8],b[8];
+    uint32_t a[8],b[8];
 
+    int value;
     // Read inputs for A
     for (int i = 0; i < 8; i++) {
         printf("%2d> ", i+1);
-        scanf("%d", &a[i]);
+        scanf("%d", &value);
+        a[i] = value;
     }
 
     // Read inputs for B
     for (int i = 0; i < 8; i++) {
         printf("%2d> ", i+1);
-        scanf("%d", &b[i]);
+        scanf("%d", &value);
+        b[i] = value;
     }
 
     printf("Expected result for: ");
@@ -66,8 +69,8 @@ int main(int argc, char *argv[])
     // Write in burst mode A and B into DDR_A, DDR_B and DDR_D
 
     // DDR_A
-    rc = fpga_pci_write_burst(pci_bar_handle, DDR_A_BASE, (uint32_t*) a, 2);
-    rc = fpga_pci_write_burst(pci_bar_handle, DDR_A_BASE + 256, (uint32_t*) b, 2);
+    rc = fpga_pci_write_burst(pci_bar_handle, DDR_A_BASE, a, 2);
+    rc = fpga_pci_write_burst(pci_bar_handle, DDR_A_BASE + 256, b, 2);
 
     fail_on(rc, out, "Write failed!");
 
@@ -76,7 +79,7 @@ int main(int argc, char *argv[])
     uint32_t valueB;
     for (int i = 0; i < 8; i++) {
         rc = fpga_pci_peek(pci_bar_handle, DDR_A_BASE + i * 32, &valueA);
-        rc = fpga_pci_peek(pci_bar_handle, DDR_A_BASE + 256 + i * 32, &valueA);
+        rc = fpga_pci_peek(pci_bar_handle, DDR_A_BASE + 256 + i * 32, &valueB);
         fail_on(rc, out, "Read failed!");
 
         printf("A Value #%d in DDR A: %d\n", i, (int) valueA);
