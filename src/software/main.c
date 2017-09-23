@@ -11,33 +11,15 @@
 #define IN_BUF_SIZE 8
 #define OUT_BUF_SIZE 32
 
-// TODO: This should be defined in a separate .h file
-// Memory address offsets
-#define INPUT_A0_OFFSET UINT64_C(0x0040000000)
-#define INPUT_A1_OFFSET UINT64_C(0x0040010000)
-#define INPUT_A2_OFFSET UINT64_C(0x0040020000)
-#define INPUT_A3_OFFSET UINT64_C(0x0040030000)
-#define INPUT_A4_OFFSET UINT64_C(0x0040040000)
-#define INPUT_A5_OFFSET UINT64_C(0x0040050000)
-#define INPUT_A6_OFFSET UINT64_C(0x0040060000)
-#define INPUT_A7_OFFSET UINT64_C(0x0040070000)
+#define DDR_A_BASE UINT64_C(0x0000000000)
+#define DDR_B_BASE UINT64_C(0x0080000000)
+#define DDR_D_BASE UINT64_C(0x0100000000)
 
-#define INPUT_B0_OFFSET UINT64_C(0x0040080000)
-#define INPUT_B1_OFFSET UINT64_C(0x0040090000)
-#define INPUT_B2_OFFSET UINT64_C(0x00400A0000)
-#define INPUT_B3_OFFSET UINT64_C(0x00400B0000)
-#define INPUT_B4_OFFSET UINT64_C(0x00400C0000)
-#define INPUT_B5_OFFSET UINT64_C(0x00400D0000)
-#define INPUT_B6_OFFSET UINT64_C(0x00400E0000)
-#define INPUT_B7_OFFSET UINT64_C(0x00400F0000)
-
-#define OUTPUT_OFFSET UINT64_C(0x0040100000)
 
 static uint16_t pci_vendor_id = 0x1D0F; /* Amazon PCI Vendor ID */
 static uint16_t pci_device_id = 0xF000; /* PCI Device ID preassigned by Amazon for F1 applications */
 
 int check_afi_ready(int slot_id);
-int fma_8(int a[8], int b[8], uint32_t *result);
 
 int main(int argc, char *argv[])
 {
@@ -49,7 +31,6 @@ int main(int argc, char *argv[])
     rc = check_afi_ready(0);
     fail_on(rc, out, "AFI not ready");
 
-    uint32_t result;
     int a[8],b[8];
 
     // Read inputs for A
@@ -76,66 +57,42 @@ int main(int argc, char *argv[])
     }
     printf(" = %d\n", expected);
 
-    rc = fma_8(a, b, &result);
-    fail_on(rc, out, "Fused multiply add failed");
-    printf("Actual: %d\n", (int) result);
 
-    return rc;
-
-out:
-    return 1;
-}
-
-int fma_8(int a[8], int b[8], uint32_t *result)
-{
-    int rc;
-
+    // Attach PCIe
     pci_bar_handle_t pci_bar_handle = PCI_BAR_HANDLE_INIT;
-
-    rc = fpga_pci_attach(0, FPGA_APP_PF, APP_PF_BAR4, 0, &pci_bar_handle);
+    rc = fpga_pci_attach(0, FPGA_APP_PF, APP_PF_BAR4, BURST_CAPABLE, &pci_bar_handle);
     fail_on(rc, out, "Unable to attach to the AFI on slot id %d", 0);
 
-    // Setup addresses
-    uint64_t input_a_addr[8] = {
-        INPUT_A0_OFFSET,
-        INPUT_A1_OFFSET,
-        INPUT_A2_OFFSET,
-        INPUT_A3_OFFSET,
-        INPUT_A4_OFFSET,
-        INPUT_A5_OFFSET,
-        INPUT_A6_OFFSET,
-        INPUT_A7_OFFSET
-    };
+    // Write in burst mode A and B into DDR_A, DDR_B and DDR_D
 
-    uint64_t input_b_addr[8] = {
-        INPUT_B0_OFFSET,
-        INPUT_B1_OFFSET,
-        INPUT_B2_OFFSET,
-        INPUT_B3_OFFSET,
-        INPUT_B4_OFFSET,
-        INPUT_B5_OFFSET,
-        INPUT_B6_OFFSET,
-        INPUT_B7_OFFSET
-    };
+    // DDR_A
+    rc = fpga_pci_write_burst(pci_bar_handle, DDR_A_BASE, (uint32_t*) a, 2);
+    rc = fpga_pci_write_burst(pci_bar_handle, DDR_A_BASE + 64, (uint32_t*) b, 2);
 
-    // Write vector inputs
+    // DDR_B
+    rc = fpga_pci_write_burst(pci_bar_handle, DDR_B_BASE, (uint32_t*) a, 2);
+    rc = fpga_pci_write_burst(pci_bar_handle, DDR_B_BASE + 64, (uint32_t*) b, 2);
+
+    // DDR_D
+    rc = fpga_pci_write_burst(pci_bar_handle, DDR_D_BASE, (uint32_t*) a, 2);
+    rc = fpga_pci_write_burst(pci_bar_handle, DDR_D_BASE + 64, (uint32_t*) b, 2);
+
+    fail_on(rc, out, "Write failed!");
+
+    // Read from each DDR
+    uint32_t valueA;
+    uint32_t valueB;
+    uint32_t valueD;
     for (int i = 0; i < 8; i++) {
-        // A
-        printf("Writing %d to A input address.\n", a[i]);
-        rc = fpga_pci_poke(pci_bar_handle, input_a_addr[i], a[i]);
-        fail_on(rc, out, "Unable to write to FPGA");
+        rc = fpga_pci_peek(pci_bar_handle, DDR_A_BASE + i * 8, &valueA);
+        rc = fpga_pci_peek(pci_bar_handle, DDR_B_BASE + i * 8, &valueB);
+        rc = fpga_pci_peek(pci_bar_handle, DDR_D_BASE + i * 8, &valueD);
+        fail_on(rc, out, "Read failed!");
 
-        // B
-        printf("Writing %d to B input address.\n", b[i]);
-        rc = fpga_pci_poke(pci_bar_handle, input_b_addr[i], b[i]);
-        fail_on(rc, out, "Unable to write to FPGA");
+        printf("Value #%d in DDR A: %d", i, (int) valueA);
+        printf("Value #%d in DDR B: %d", i, (int) valueB);
+        printf("Value #%d in DDR D: %d", i, (int) valueD);
     }
-
-    sleep(10);
-
-    // Read result
-    rc = fpga_pci_peek(pci_bar_handle, OUTPUT_OFFSET, result);
-    fail_on(rc, out, "Unable to read from FPGA");
 
 out:
     if (pci_bar_handle >= 0) {
@@ -147,7 +104,6 @@ out:
 
     return (rc != 0 ? 1 : 0);
 }
-
 
 int check_afi_ready(int slot_id)
 {
