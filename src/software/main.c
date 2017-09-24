@@ -11,7 +11,7 @@
 #define INPUT_A0_BASE UINT64_C(0x004000)
 #define INPUT_A1_BASE UINT64_C(0x002000)
 #define INPUT_A2_BASE UINT64_C(0x003000)
-#define INPUT_A3_BASE UINT64_C(0x004000)
+#define INPUT_A3_BASE UINT64_C(0x006000)
 #define INPUT_A4_BASE UINT64_C(0x005000)
 #define INPUT_A5_BASE UINT64_C(0x010000)
 #define INPUT_A6_BASE UINT64_C(0x000000)
@@ -45,7 +45,7 @@ int main(int argc, char *argv[])
 
     // Attach PCIe
     pci_bar_handle_t pci_bar_handle = PCI_BAR_HANDLE_INIT;
-    rc = fpga_pci_attach(0, FPGA_APP_PF, APP_PF_BAR1, BURST_CAPABLE, &pci_bar_handle);
+    rc = fpga_pci_attach(0, FPGA_APP_PF, APP_PF_BAR1, 0, &pci_bar_handle);
     fail_on(rc, out, "Unable to attach to the AFI on slot id %d", 0);
 
 
