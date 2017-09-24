@@ -8,17 +8,25 @@
 #include <fpga_mgmt.h>
 #include <utils/lcd.h>
 
-#define IN_BUF_SIZE 8
-#define OUT_BUF_SIZE 32
+#define INPUT_A0_BASE UINT64_C(0x004000)
+#define INPUT_A1_BASE UINT64_C(0x002000)
+#define INPUT_A2_BASE UINT64_C(0x003000)
+#define INPUT_A3_BASE UINT64_C(0x004000)
+#define INPUT_A4_BASE UINT64_C(0x005000)
+#define INPUT_A5_BASE UINT64_C(0x010000)
+#define INPUT_A6_BASE UINT64_C(0x000000)
+#define INPUT_A7_BASE UINT64_C(0x001000)
 
-#define DDR_A_BASE UINT64_C(0x0000000000)
-#define DDR_B_BASE UINT64_C(0x0080000000)
-#define DDR_D_BASE UINT64_C(0x0100000000)
+#define INPUT_B0_BASE UINT64_C(0x007000)
+#define INPUT_B1_BASE UINT64_C(0x008000)
+#define INPUT_B2_BASE UINT64_C(0x00C000)
+#define INPUT_B3_BASE UINT64_C(0x00A000)
+#define INPUT_B4_BASE UINT64_C(0x00D000)
+#define INPUT_B5_BASE UINT64_C(0x009000)
+#define INPUT_B6_BASE UINT64_C(0x00E000)
+#define INPUT_B7_BASE UINT64_C(0x00B000)
 
-#define INPUT_A_BASE UINT64_C(0x0180000000)
-#define INPUT_B_BASE UINT64_C(0x0180010000)
-#define OUTPUT_BASE UINT64_C(0x0180020000)
-
+#define OUTPUT_BASE UINT64_C(0x00F000)
 
 static uint16_t pci_vendor_id = 0x1D0F; /* Amazon PCI Vendor ID */
 static uint16_t pci_device_id = 0xF000; /* PCI Device ID preassigned by Amazon for F1 applications */
@@ -37,7 +45,7 @@ int main(int argc, char *argv[])
 
     // Attach PCIe
     pci_bar_handle_t pci_bar_handle = PCI_BAR_HANDLE_INIT;
-    rc = fpga_pci_attach(0, FPGA_APP_PF, APP_PF_BAR4, BURST_CAPABLE, &pci_bar_handle);
+    rc = fpga_pci_attach(0, FPGA_APP_PF, APP_PF_BAR1, BURST_CAPABLE, &pci_bar_handle);
     fail_on(rc, out, "Unable to attach to the AFI on slot id %d", 0);
 
 
@@ -73,45 +81,37 @@ int main(int argc, char *argv[])
     }
     printf(" = %d\n", expected);
 
-    // Write in burst mode A and B into DDR_A, DDR_B and DDR_D
+    // Write inputs
+    uint64_t a_addrs[8] = {
+        INPUT_A0_BASE,
+        INPUT_A1_BASE,
+        INPUT_A2_BASE,
+        INPUT_A3_BASE,
+        INPUT_A4_BASE,
+        INPUT_A5_BASE,
+        INPUT_A6_BASE,
+        INPUT_A7_BASE
+    };
+    uint64_t b_addrs[8] = {
+        INPUT_B0_BASE,
+        INPUT_B1_BASE,
+        INPUT_B2_BASE,
+        INPUT_B3_BASE,
+        INPUT_B4_BASE,
+        INPUT_B5_BASE,
+        INPUT_B6_BASE,
+        INPUT_B7_BASE
+    };
 
-    // DDR_A
-    rc = fpga_pci_write_burst(pci_bar_handle, DDR_A_BASE, a, 8);
-    rc = fpga_pci_write_burst(pci_bar_handle, DDR_A_BASE + 256, b, 8);
-
-    fail_on(rc, out, "Write failed!");
-
-    // Read from each DDR
-    uint32_t *readA = malloc(sizeof(uint32_t));
-    uint32_t *readB = malloc(sizeof(uint32_t));
     for (int i = 0; i < 8; i++) {
-        rc = fpga_pci_peek(pci_bar_handle, DDR_A_BASE + i * 4, readA);
-        rc = fpga_pci_peek(pci_bar_handle, DDR_A_BASE + 256 + i * 4, readB);
-
-        printf("A%d: %d\n", i, (int) *readA);
-        printf("B%d: %d\n", i, (int) *readB);
+        rc = fpga_pci_poke(pci_bar_handle, a_addrs[i], a[i]);
+        rc = fpga_pci_poke(pci_bar_handle, b_addrs[i], b[i]);
+        fail_on(rc, out, "Unable to write to FPGA");
     }
-    free(readA);
-    free(readB);
-    readA = NULL;
-    readB = NULL;
 
-    // MULTIPLIER TEST
-
-    // Test multiplier
-    int multiplierA, multiplierB;
-    uint32_t *multiplierResult = malloc(sizeof(uint32_t));
-
-    // Write in to multiplier registers
-    printf("Input A:\n");
-    scanf("%d", &multiplierA);
-    rc = fpga_pci_poke(pci_bar_handle, INPUT_A_BASE, );
-
-    printf("Input B:\n");
-    scanf("%d", &multiplierB);
-
-    printf("Expected: %d\n", multiplierA * multiplierB);
-    printf("Result: %d\n", (int) *multiplierResult);
+    uint32_t *result = malloc(sizeof(uint32_t));
+    rc = fpga_pci_peek(pci_bar_handle, OUTPUT_BASE, result);
+    printf("Result: %d\n", (int) *result);
 
 out:
     if (pci_bar_handle >= 0) {
